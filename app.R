@@ -18,7 +18,7 @@ if (FALSE) {
 
 
 
-CLT_VH <- "calc(100vh - 120px)"
+CLT_VH <- "calc(100vh - 80px)"
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
 # =========================
@@ -36,7 +36,7 @@ COL_CENTER   <- "#2f6f8f"   # center vertical line (cyan-leaning blue; high cont
 Plot_theme <- function(
     base_font    = c("Avenir Next", "Verdana", "sans-serif"),
     heading_font = c("Trebuchet MS", "Avenir", "Verdana", "sans-serif"),
-    base_size = 14
+    base_size = 12
 ) {
   base_family    <- base_font[[1]]
   heading_family <- heading_font[[1]]
@@ -60,7 +60,7 @@ Plot_theme <- function(
       family = heading_family, size = 16, face = "bold",
       color = "#2f3e46", margin = margin(b = 8, unit = "pt")
     ),
-    plot.subtitle = element_text(family = base_family, size = 12, color = "#3b4a55"),
+    plot.subtitle = element_text(family = base_family, size = 14, color = "#3b4a55"),
 
     plot.margin = margin(t = 5, r = 6, b = 4, l = 6, unit = "pt")
   )
@@ -123,30 +123,6 @@ pretty_stat <- function(stat) if (stat == "mean") "Average" else "Median"
 # Helpers: dot stacking + expected curve in counts
 # =========================
 
-# Compute stacked dot positions so y-axis truly represents Count
-stack_dots <- function(values, lim, bins) {
-  bw <- (lim[2] - lim[1]) / bins
-  if (!is.finite(bw) || bw <= 0) return(data.frame(x = numeric(0), y = integer(0)))
-
-  # Keep only finite values in-range
-  v <- values[is.finite(values) & values >= lim[1] & values <= lim[2]]
-  if (!length(v)) return(data.frame(x = numeric(0), y = integer(0)))
-
-  # Integer bin id: 0...(bins-1)
-  bin <- floor((v - lim[1]) / bw)
-  bin <- pmin(pmax(bin, 0), bins - 1)
-
-  # Bin center x-position
-  x_center <- lim[1] + (bin + 0.5) * bw
-
-  d <- data.frame(bin = bin, x = x_center)
-  d <- d[order(d$bin), , drop = FALSE]
-
-  # Stack within each bin (start at 0 so bottom dot sits on baseline)
-  d$y <- ave(d$bin, d$bin, FUN = function(z) seq_along(z) - 1)
-
-  d[, c("x", "y")]
-}
 
 # Expected curve scaled to counts for continuous-ish distributions using a reference draw
 expected_curve_counts_continuous <- function(ref, N, binwidth, from, to) {
@@ -205,13 +181,20 @@ ui <- page_navbar(
     info      = "#2f6f8f"
   ),
 
+  # These two make the app use the viewport more naturally
+  fillable = TRUE,
+
+  # Optional: remove the “container” max-width so it spans the page nicely
+  # (If you prefer constrained width, delete this line.)
+  fluid = TRUE,
+
   nav_panel(
     "CLT Visualizer",
     layout_sidebar(
       sidebar = sidebar(
         title = "Central Limit Theorem (CLT)",
         open = "open",
-        width = 520,
+        width = 550,
 
         p(strong("What this visualization shows")),
         p("The top row shows two independent samples drawn from the same process. The middle plot pools all raw points to reveal the underlying shape. The bottom plot pools the averages (or medians) from each sample—this is the CLT view, showing how the summary tightens and becomes more bell-shaped as sample size grows."),
@@ -226,8 +209,13 @@ ui <- page_navbar(
         p("Small samples can look unusual by chance, so one sample should not be treated as the full truth. The CLT is about averages (or other summaries), not raw values becoming bell-shaped. A common guideline is that n ≈ 30 is often 'enough,' but it is not definitive—the required sample size depends on skew, variability, and tail heaviness.")
       ),
 
-      layout_columns(
-        col_widths = c(4, 8),
+layout_columns(
+  col_widths = breakpoints(
+    sm = c(12, 12),  # stack on small screens
+    md = c(5, 7),
+    lg = c(3, 9)
+  ),
+  fill = T,
 
         # Controls
         card(
@@ -238,18 +226,18 @@ ui <- page_navbar(
               "clt_dist",
               "Choose a source distribution",
               choices = c("Normal", "Uniform", "Exponential", "Lognormal", "Bernoulli", "Poisson"),
-              selected = "Normal"
+              selected = "Normal", width = "100%"
             ),
             uiOutput("clt_param_ui"),
 
-            sliderInput("clt_n", "Sample size per draw", min = 5, max = 500, value = 30, step = 5),
+            sliderInput("clt_n", "Sample size per draw", min = 5, max = 500, value = 30, step = 5, width = "100%"),
 
             radioButtons(
               "clt_stat",
               "Statistic to collect (bottom plot)",
               choices = c("Average" = "mean", "Median" = "median"),
               selected = "mean",
-              inline = TRUE
+              inline = TRUE, width = "100%"
             ),
 
             hr(),
@@ -260,42 +248,51 @@ ui <- page_navbar(
               actionButton("clt_reset", "Reset collectors", class = "btn-outline-secondary")
             ),
 
-            br(),
-
-            sliderInput("clt_runs", "Auto-run (number of draws)", min = 10, max = 2000, value = 200, step = 25),
-            actionButton("clt_autorun", "Auto-run", class = "btn-outline-primary"),
+            sliderInput("clt_runs", "Auto-run (number of draws)", min = 25, max = 2000, value = 250, step = 25, width = "100%"),
+            actionButton("clt_autorun", "Auto-run", class = "btn-outline-primary", width = "100%"),
 
             p(strong("Tip")),
             p("Try Exponential or Lognormal, then increase sample size and watch the bottom plot tighten even though the raw data stay skewed.")
           )
         ),
 
-        # Plots
+       # Plots
         card(
           height = CLT_VH,
           full_screen = TRUE,
-          card_header("Plots"),
+          fill = T,
+          #card_header("Plots"),
+
           card_body(
-            card(
-              card_header("Two independent samples (A and B)"),
-              card_body(
-                layout_columns(
-                  col_widths = c(6, 6),
-                  plotOutput("clt_plot_A", height = "280px"),
-                  plotOutput("clt_plot_B", height = "280px")
+            fill = T,
+            div(
+              style = "height: 100%; min-height: 0; padding-right: .25rem;",
+
+              card(
+                fill = T,
+                card_header("Two independent samples (A and B) with the same real distribution"),
+                card_body(
+                  fill = TRUE,
+                  layout_columns(
+                    col_widths = c(6, 6),
+                    fill = T,
+                    plotOutput("clt_plot_A", height = "24vh"),
+                    plotOutput("clt_plot_B", height = "24vh")
+                  )
                 )
+              ),
+
+              card(
+                fill = TRUE,
+                card_header("Collector 1: all raw sample points pooled"),
+                card_body(plotOutput("clt_plot_points", height = "22vh"))
+              ),
+
+              card(
+                fill = TRUE,
+                card_header("Collector 2: distribution of sample averages (CLT view)"),
+                card_body(plotOutput("clt_plot_stats", height = "22vh"))
               )
-            ),
-
-            card(
-              card_header("Collector 1: all raw sample points pooled"),
-              card_body(plotOutput("clt_plot_points", height = "240px"))
-            ),
-
-            card(
-              full_screen = TRUE,
-              card_header("Collector 2: distribution of sample averages (CLT view)"),
-              card_body(plotOutput("clt_plot_stats", height = "240px"))
             )
           )
         )
@@ -325,25 +322,25 @@ server <- function(input, output, session) {
 
     if (dist == "Normal") {
       tagList(
-        sliderInput("clt_mu", "Center (mean)", min = 0, max = 50, value = 25, step = 1),
-        sliderInput("clt_sd", "Spread (sd)",   min = 0.5, max = 25, value = 8, step = 0.5)
+        sliderInput("clt_mu", "Center (mean)", min = 0, max = 50, value = 25, step = 1, width = "100%"),
+        sliderInput("clt_sd", "Spread (sd)",   min = 0.5, max = 25, value = 8, step = 0.5, width = "100%")
       )
     } else if (dist == "Uniform") {
       tagList(
-        sliderInput("clt_a", "Minimum", min = 0, max = 49, value = 0, step = 1),
-        sliderInput("clt_b", "Maximum", min = 1, max = 100, value = 50, step = 1)
+        sliderInput("clt_a", "Minimum", min = 0, max = 49, value = 0, step = 1, width = "100%"),
+        sliderInput("clt_b", "Maximum", min = 1, max = 100, value = 50, step = 1, width = "100%")
       )
     } else if (dist == "Exponential") {
-      sliderInput("clt_exp_mean", "Typical size (mean)", min = 0.2, max = 30, value = 10, step = 0.2)
+      sliderInput("clt_exp_mean", "Typical size (mean)", min = 0.2, max = 30, value = 10, step = 0.2, width = "100%")
     } else if (dist == "Lognormal") {
       tagList(
-        sliderInput("clt_ln_median", "Typical value (median)", min = 0.2, max = 30, value = 8, step = 0.2),
-        sliderInput("clt_ln_sigma",  "Skew / spread",          min = 0.1, max = 2.0, value = 0.8, step = 0.05)
+        sliderInput("clt_ln_median", "Typical value (median)", min = 0.2, max = 30, value = 8, step = 0.2, width = "100%"),
+        sliderInput("clt_ln_sigma",  "Skew / spread",          min = 0.1, max = 2.0, value = 0.8, step = 0.05, width = "100%")
       )
     } else if (dist == "Bernoulli") {
-      sliderInput("clt_p", "Chance of 1", min = 0.01, max = 0.99, value = 0.30, step = 0.01)
+      sliderInput("clt_p", "Chance of 1", min = 0.01, max = 0.99, value = 0.30, step = 0.01, width = "100%")
     } else if (dist == "Poisson") {
-      sliderInput("clt_lambda", "Average rate (lambda)", min = 0.5, max = 50, value = 6, step = 0.5)
+      sliderInput("clt_lambda", "Average rate (lambda)", min = 0.5, max = 50, value = 6, step = 0.5, width = "100%")
     }
   })
 
@@ -371,29 +368,55 @@ server <- function(input, output, session) {
   # Reference draw for expected curves (kept modest for ShinyLive performance)
   ref_draw <- reactive({
     spec <- clt_spec()
-    spec$gen(20000)
+    spec$gen(10000)
   })
 
   x_limits <- reactive({
-    x <- ref_draw()
-    x <- x[is.finite(x)]
-    x <- x[x >= 0]
-
-    base <- as.numeric(quantile(x, probs = 0.999, names = FALSE))
-
     dist <- input$clt_dist
+    pr   <- params()
 
-    # distribution-specific widening
-    if (dist == "Lognormal" || dist == "Exponential") {
-      xmax <- base * 2.5
-    } else if (dist == "Poisson") {
-      xmax <- base + 10
-    } else {
-      xmax <- base * 1.6
+    # helper: small padding
+    pad <- function(lo, hi, p = 0.04) {
+      d <- hi - lo
+      c(lo - p*d, hi + p*d)
     }
 
-    xmax <- max(xmax, 50)
-    c(0, xmax)
+    # Nonnegative-only distributions: limit from 0 upward using high quantile
+    if (dist %in% c("Exponential", "Lognormal", "Poisson", "Bernoulli")) {
+      x <- ref_draw()
+      x <- x[is.finite(x) & x >= 0]
+
+      if (length(x) < 50) return(c(0, 1))
+
+      hi <- as.numeric(stats::quantile(x, 0.999, names = FALSE))
+      hi <- max(hi, 1)
+
+      # modest expansion for heavy tails, not huge
+      if (dist %in% c("Exponential", "Lognormal")) hi <- hi * 1.15
+      if (dist == "Poisson")                       hi <- hi + 3
+
+      lim <- pad(0, hi)
+      lim[1] <- 0
+      return(lim)
+    }
+
+    # Normal: symmetric around mu
+    if (dist == "Normal") {
+      mu <- pr$mu; sd <- pr$sd
+      lo <- mu - 4*sd
+      hi <- mu + 4*sd
+      return(pad(lo, hi))
+    }
+
+    # Uniform: exactly [a, b] (after your a<b guard in clt_spec)
+    if (dist == "Uniform") {
+      lo <- pr$a
+      hi <- pr$b
+      return(pad(lo, hi))
+    }
+
+    # fallback
+    c(0, 50)
   })
 
 
@@ -497,7 +520,7 @@ server <- function(input, output, session) {
         stackratio = 1,
         fill  = COL_BARS,
         color = COL_OUTLINE,
-        alpha = 0.8
+        alpha = 0.6
       ) +
       scale_x_continuous(limits = lim) +
       scale_y_continuous(NULL, breaks = NULL) +

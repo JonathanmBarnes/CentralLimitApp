@@ -170,7 +170,25 @@ expected_curve_counts_discrete <- function(dist, params, N, lim) {
 # =========================
 # UI
 # =========================
-ui <- page_navbar(
+ui <- tagList(
+  # This is the real HTML <head>
+  tags$head(
+    tags$title("Intuition Lab - Central Limit"),
+    tags$style(HTML("
+      .navbar .jb-logo-item > a {
+      padding-left: 0.1rem !important;
+      padding-right: 0.1rem !important;
+      padding-top: 0.1rem !important;
+      padding-bottom: 0.4rem !important;
+      }
+      .jb-logo {
+        height: 38px;
+        display: block;
+        margin: 0;
+      }
+    ")),
+  ),
+  page_navbar(
   title = "Intuition Lab",
   theme = bs_theme(
     version = 5,
@@ -307,6 +325,21 @@ layout_columns(
         p(strong("Funding and Disclaimer")),
         p("This project is supported by the Assistant Secretary for Technology Policy (ASTP) of the US Department of Health and Human Services (HHS) under grant number 90PH0005/01-13."),
         p("This information or content and conclusions are those of the authors and should not be construed as the official position or policy of, nor should any endorsements be inferred by ASTP, HHS or the U.S. Government.")
+      )
+    )
+  ),
+  nav_spacer(),
+
+    nav_item(
+      class = "jb-logo-item",
+      tags$a(
+        href   = "https://jonathanmbarnes.github.io",
+        target = "_blank",
+        tags$img(
+          src   = "HexlogoJB.png",
+          alt   = "Jonathan M. Barnes",
+          class = "jb-logo"
+        )
       )
     )
   )

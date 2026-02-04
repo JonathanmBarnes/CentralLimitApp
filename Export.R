@@ -16,7 +16,7 @@ shinylive::export(
   appdir = ".",
   destdir = "docs",
   template_params = list(
-    title = "Intuition Lab - Central Limit",
+    title = "Intuition Lab - Sampling & Spread",
     include_in_head = ga_head
   )
 )
